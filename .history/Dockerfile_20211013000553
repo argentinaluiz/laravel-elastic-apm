@@ -1,0 +1,31 @@
+FROM php:8.0-alpine3.14
+
+RUN apk add --no-cache git \
+            shadow \ 
+            openssl \
+            bash \
+            nodejs \
+            npm \
+            libzip-dev \
+            autoconf \
+            curl-dev \
+            build-base && \
+    curl https://raw.githubusercontent.com/eficode/wait-for/v2.1.3/wait-for --output /usr/bin/wait-for && \
+    touch /home/www-data/.bashrc | echo "PS1='\w\$ '" >> /home/www-data/.bashrc && \
+    docker-php-ext-install pdo zip
+
+RUN usermod -u 1000 www-data
+
+WORKDIR /var/www
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version=2.0.8
+
+RUN cd /tmp && \
+    git clone https://github.com/elastic/apm-agent-php.git apm && \
+    cd apm/src/ext && \
+    /usr/local/bin/phpize && CFLAGS="-std=gnu99" ./configure --enable-elastic_apm && \
+    make clean && make && make install
+
+COPY ./php-custom.ini /usr/local/etc/php/conf.d/custom.ini
+
+USER www-data
